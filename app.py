@@ -1,18 +1,28 @@
 from fastapi import FastAPI
 import mysql.connector
 from fastapi.encoders import jsonable_encoder
-from enum import Enum
+# from enum import Enum
 from datetime import date
 from pydantic import BaseModel
 
 app = FastAPI()
 
-mydb = mysql.connector.connect(
-  host="localhost",
-  user="root",
-  password="",
-  database="learnmot"
-)
+try:
+    mydb = mysql.connector.connect(
+    host="localhost",
+    port=3306,
+    user="root",
+    password="",
+    database="learnmot"
+    )
+    print("Contect Successful")
+except mysql.connector.Error as err:
+    # Si se produce un error, imprime el mensaje de error
+    print(f"Error de conexión a la base de datos: {err}")
+finally:
+    # Asegúrate de cerrar la conexión, independientemente de si se realizó con éxito o no.
+    if 'conn' in locals():
+        mydb.close()
 
 # class SelectRole(str, Enum):
 #     Admin = 'admin'
@@ -73,9 +83,9 @@ def root():
 @app.get("/listusers")
 def listusers():
     try:
-        data = mydb.data()
-        data.execute("SELECT * FROM users")
-        result = data.fetchall()
+        db = mydb.cursor()
+        db.execute("SELECT * FROM users")
+        result = db.fetchall()
         payload = []
         content = {} 
         for res in result:
@@ -93,7 +103,7 @@ def listusers():
         print(payload)
         json_data = jsonable_encoder(payload)            
         return {"result": json_data}
-    except (Exception) as error:
+    except Exception as error:
         return {"error":error}
 
 @app.post("/insertuser")
@@ -105,36 +115,42 @@ def insertuser(newuser: User):
         role = newuser.role
         email = newuser.email
         password = newuser.password
-        data = mydb.data() 
-        data.execute("INSERT INTO users(name,last_name,sex,role,email,password) VALUES(%s,%s,%s,%s,%s,%s)",(name,last_name,sex,role,email,password))
+        db = mydb.cursor() 
+        db.execute("INSERT INTO users(name,last_name,sex,role,email,password) VALUES(%s,%s,%s,%s,%s,%s)",(name,last_name,sex,role,email,password))
         mydb.commit()
-        data.close()
+        db.close()
         return {"info":"User create successful."}
     except Exception as error:
         return {"error":error}
 
-@app.delete("users/deletelike/{name}")
+@app.delete("/users/deletelike/{name}")
 def deletelike(name: str):
     try:
-        data = mydb.data()
-        data.execute("DELETE FROM users WHERE name like = '%s'",(name,))
+        db = mydb.cursor()
+        # db.execute("""DELETE from users where name like = %s%""",(name))
+        result = db.fetchall()
+        for res in result:
+            value = name
+            sql = ("DELETE from users where name like = '%s%%'",(value,))
+            db.execute(sql)
+            print(res,"removed")
         mydb.commit()
-        data.close()
+        db.close()
         return {"info":"User removed successful."}
     except Exception as error:
         return {"result":error}
 
-@app.get("users/userscount")
+@app.get("/users/userscount")
 def userscount():
     try:
-        data = mydb.data()
-        data.execute("SELECT COUNT(role) FROM users")
-        result = data.fetchall()
+        db = mydb.cursor()
+        db.execute("SELECT COUNT(users) FROM users")
+        result = db.fetchall()
         payload = []
         content = {}
         for res in result:
             content={
-                'role':res[0],
+                'id':res[0],
                 # 'name':res[1],
                 # 'las_name':res[2],
                 # 'sex':res[3],
@@ -170,7 +186,7 @@ def userscount():
 #     except Exception as error:
 #         return {"resultado":error}
     
-@app.get("users/docente/subject/{id}")
+@app.get("/users/docente/subject/{id}")
 def getTeacherBySubject(id: int):
     try:
         data = mydb.data()
@@ -201,7 +217,7 @@ def getTeacherBySubject(id: int):
     except (Exception) as error:
         return {"result":error}
     
-@app.get("users/subject/observation/{id}/{topic}")
+@app.get("/users/subject/observation/{id}/{topic}")
 def getSubjectAndObservation(id: int, topic: str):
     try:
         data = mydb.data()
