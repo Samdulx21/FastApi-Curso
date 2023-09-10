@@ -120,24 +120,73 @@ def listausers():
         return {"resultado": json_data}
     except (Exception) as error:
         return {"resultado": error}
+@app.put("/update/user/{id}")
+def update_user(id: int, updateuser: Users):
+    try:
+        db = mydb.cursor()
+        idsql = "SELECT id FROM users WHERE id = %s"
+        db.execute(idsql,(id,))
+        response = db.fetchone()
+        if not response:
+            db.close()
+            return {"info": f"Id '{id}' not found."}
+        name = updateuser.name
+        last_name = updateuser.last_name
+        sex = updateuser.sex
+        role = updateuser.role
+        email = updateuser.email
+        password = updateuser.password
+        update = """
+            UPDATE users SET
+            name = %s,
+            last_name = %s,
+            sex = %s,
+            role = %s,
+            email = %s,
+            password = %s
+            WHERE id = %s
+        """
+        db.execute(update,(name,last_name,sex,role,email,password, id))
+        mydb.commit()
+        db.close()
+        return {"info":"User updated successfully."}
+    except Exception as error:    
+        return {"error":error}
+@app.delete("/delete/user/{id}")
+def delete_user(id: int):
+    try:
+        db = mydb.cursor()
+        idsql = "SELECT id FROM users WHERE id = %s"
+        db.execute(idsql, (id,))
+        response = db.fetchone()
+        if not response:
+            db.close()
+            return {"info": f"Id '{id}' not found."}
+        delete = "DELETE FROM users WHERE id = %s"
+        db.execute(delete, (id,))
+        mydb.commit()
+        db.close()
+        return {"infor":"User deleted successfully."}
+    except Exception as error:
+        return {"result":error}
 
 
-@app.delete("users/deletelike/{name}")
+@app.delete("/deletelike/users/{name}")
 def deletelike(name: str):
     try:
-        data = mydb.cursor()
-        data.execute("DELETE FROM users WHERE name LIKE = '%s'", (name,))
+        cursor = mydb.cursor()
+        cursor.execute("DELETE FROM users WHERE name LIKE %s", (name,))
         mydb.commit()
-        data.close()
+        cursor.close()
         return {"info": "User removed successful."}
     except Exception as error:
         return {"result": error}
 
 
-@app.get("users/userscount")
+@app.get("/userscount/users")
 def userscount():
     try:
-        data = mydb.data()
+        data = mydb.cursor()
         data.execute("SELECT COUNT(role) FROM users")
         result = data.fetchall()
         payload = []
@@ -145,12 +194,12 @@ def userscount():
         for res in result:
             content = {
                 'role': res[0],
-                # 'name':res[1],
+                #'name':res[1],
                 # 'las_name':res[2],
                 # 'sex':res[3],
             }
-        payload.append(content)
-        content = {}
+            payload.append(content)
+            content = {}
         print(payload)
         json_data = jsonable_encoder(payload)
         return {"result": json_data}
