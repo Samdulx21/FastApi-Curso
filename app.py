@@ -308,10 +308,72 @@ def insert_observation(observation: Observation):
     except Exception as error:
         return {"result":error}
 
+@app.put("/updated/observation/{id}")
+def update_observation(id: int, observation: Observation):
+    try:
+        db = mydb.cursor()
+        idsql = "SELECT id FROM observation WHERE id = %s"
+        db.execute(idsql,(id,))
+        response = db.fetchone()
+        if not response:
+            db.close()
+            return {"info": f"Id '{id}' not found."}
+        
+        description = observation.description
+        academic_load_id = observation.academic_load_id
+        update = """
+            UPDATE observation SET 
+            description = %s,
+            academic_load_id = %s
+            WHERE id = %s
+            """
+        db.execute(update,(description,academic_load_id, id))
+        mydb.commit()
+        db.close()
+        return {"info":"observation updated successfully."}
+    except Exception as error:
+        return {"result":error}
 # @app.put("/update/observation")
 
 
 #  --------------------------------------------------------------
+# get method using inner joins and clause where
+@app.get("/filter/observation/academicload/{id}")
+def get_observation_academicload(id: int):
+    try:
+        db = mydb.cursor()
+        query = """
+            SELECT o.description, al.topic
+            FROM observation as o
+            JOIN academic_load as al
+            ON o.academic_load_id = al.id
+            WHERE al.teacher_id = %s
+        """
+        db.execute(query, (id,))
+        response = db.fetchall()
+        db.close()
+        return {"result": response}
+    except Exception as error:
+        return {"error":error}
+    
+@app.get("/filter/users/academicload/{id}")
+def get_observation_academicload(id: int):
+    try:
+        db = mydb.cursor()
+        query = """
+            SELECT u.name, u.sex, al.topic
+            FROM users as u
+            JOIN academic_load as al
+            ON u.id = al.student_id
+            WHERE al.student_id = %s
+        """
+        db.execute(query, (id,))
+        response = db.fetchall()
+        db.close()
+        return {"result": response}
+    except Exception as error:
+        return {"error":error}
+
 # delete method using clause "like"+
 @app.delete("/deletelike/users/{name}")
 def deletelike(name: str):
@@ -407,7 +469,7 @@ def get_teacher_by_subject(id: int):
     except (Exception) as error:
         return {"result":error}
     
-@app.get("/users/subject/observation/{id}/{topic}")
+@app.get("/users/academicload/observation/{id}/{topic}")
 def getSubjectAndObservation(id: int, topic: str):
     try:
         data = mydb.data()
