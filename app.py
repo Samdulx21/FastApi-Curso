@@ -333,11 +333,28 @@ def update_observation(id: int, observation: Observation):
         return {"info":"observation updated successfully."}
     except Exception as error:
         return {"result":error}
-# @app.put("/update/observation")
+
+@app.delete("/delete/observation/{id}")
+def delete_observation(id: int):
+    try:
+        db = mydb.cursor()
+        idsql = "SELECT id FROM observation WHERE id = %s"
+        db.execute(idsql,(id,))
+        response = db.fetchone()
+        if not response:
+            db.close()
+            return {"info": f"Id '{id}' not found."}
+        delete = "DELETE FROM observation WHERE id = %s"
+        db.execute(delete,(id,))
+        mydb.commit()
+        db.close()
+        return {"info": "observation load removed successfully."}
+    except Exception as error:
+        return {"error": error}
 
 
 #  --------------------------------------------------------------
-# get method using inner joins and clause where
+# get method using inner joins on two tables and clausule where
 @app.get("/filter/observation/academicload/{id}")
 def get_observation_academicload(id: int):
     try:
@@ -373,6 +390,51 @@ def get_observation_academicload(id: int):
         return {"result": response}
     except Exception as error:
         return {"error":error}
+
+
+# get method using inner joins on three tables
+@app.get("/filter/users/academicload/observation/{id}")
+def get_users_observation(id: int):
+    try:
+        db = mydb.cursor()
+        query = """
+            SELECT u.name, al.topic, o.description
+            FROM users as u
+            JOIN academic_load as al 
+            ON u.id = al.student_id
+            JOIN observation as o
+            ON al.id = o.academic_load_id
+            WHERE u.id = %s
+        """
+        db.execute(query,(id,))
+        response = db.fetchall()
+        db.close()
+        return {"result":response}
+    except Exception as error:
+        return {"error":error}
+    
+@app.get("/filter/users/role/academicload/{id}")
+def get_users_observation(id: int):
+    try:
+        db = mydb.cursor()
+        query = """
+            SELECT u.name, al.topic, r.description
+            FROM users as u
+            JOIN role_users as ru
+            ON u.id = ru.user_id
+            JOIN roles r
+            ON ru.role_id = r.id
+            JOIN academic_load as al 
+            ON u.id = al.teacher_id
+            WHERE u.id = %s
+        """
+        db.execute(query,(id,))
+        response = db.fetchall()
+        db.close()
+        return {"result":response}
+    except Exception as error:
+        return {"error":error}
+
 
 # delete method using clause "like"+
 @app.delete("/deletelike/users/{name}")
@@ -420,85 +482,49 @@ def userscount():
 #     try:
 #         data = mydb.data()
 #         data.execute("SELECT SUM(role) FROM subject")
-#         result = data.fetchall()
-#         payload = []
-#         content = {}
-#         for res in result:
-#             content={
-#                 'role':res[0],
-#                 # 'name':res[1],
-#                 # 'las_name':res[2],
-#                 # 'sex':res[3],
-#             }
-#         payload.append(content)
-#         content = {}
-#         print(payload)
-#         json_data = jsonable_encoder(payload)            
-#         return {"resultado": json_data}
+#         result = data.fetchall()      
+#         return {"resultado": result}
 #     except Exception as error:
 #         return {"resultado":error}
     
-@app.get("/users/docente/academicload/{id}")
+
+# get method using joins on two tables with clausule where and order by.
+@app.get("/users/teacher/academicload/{id}")
 def get_teacher_by_subject(id: int):
     try:
-        data = mydb.data()
-        data.execute("""
-            SELECT u.id, u.name, u.last_name, u.role, al.topic
-            FROM academic_load al
-            JOIN users u 
+        db = mydb.cursor()
+        db.execute("""
+            SELECT u.id, u.name, u.last_name, al.topic
+            FROM users as u 
+            JOIN academic_load as al
             on u.id = al.teacher_id
-            WHERE al.id = %s
+            WHERE u.id = %s
             ORDER BY al.topic DESC 
         """,(id,))
-        result = data.fetchall()
-        # payload = []
-        # content = {} 
-        # for res in result:
-        #     content={
-        #         'id':res[0],
-        #         'name':res[1],
-        #         'last_name':res[2],
-        #         'role':res[3],
-        #         'topic':res[4],
-        #     }
-        #     payload.append(content)
-        #     content = {}
-        # print(payload)
-        json_data = jsonable_encoder(result)            
-        return {"result": json_data}
-    except (Exception) as error:
+        response = db.fetchall()
+        db.close()       
+        return {"result": response}
+    except Exception as error:
         return {"result":error}
     
-@app.get("/users/academicload/observation/{id}/{topic}")
-def getSubjectAndObservation(id: int, topic: str):
+# get method using joins on three tables with clausule where, and o or.
+@app.get("/users/al/observation/{id}/{topic}")
+def get_users_academicload_observation(id: int, topic: str):
     try:
-        data = mydb.data()
-        data.execute("""
-            SELECT u.id, u.name, u.last_name, u.role, al.topic, o.observation_desc
-            FROM academic_load al
-            JOIN users u 
-            on al.teacher_id = u.id
-            JOIN observation o 
-            on o.academic_load_id = al.id
-            WHERE al.id = %s
+        db = mydb.cursor()
+        query = """
+            SELECT u.name, u.last_name, al.topic, o.description
+            FROM users as u
+            JOIN academic_load as al 
+            ON u.id = al.student_id
+            JOIN observation as o
+            ON al.id = o.academic_load_id
+            WHERE u.id = %s
             AND al.topic = %s
-        """,(id, topic,))
-        result = data.fetchall()
-        payload = []
-        content = {} 
-        for res in result:
-            content={
-                'id':res[0],
-                'name':res[1],
-                'last_name':res[2],
-                'role':res[3],
-                'topic':res[4],
-                'observation_desc':res[5],
-            }
-            payload.append(content)
-            content = {}
-        print(payload)
-        json_data = jsonable_encoder(payload)            
-        return {"result": json_data}
-    except (Exception) as error:
+        """
+        db.execute(query,(id,topic))
+        response = db.fetchall()
+        db.close()         
+        return {"result": response}
+    except Exception as error:
         return {"result":error}
