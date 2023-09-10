@@ -455,7 +455,7 @@ def deletelike(name: str):
     except Exception as error:
         return {"result":error}
 
-# get method using clause "sum"
+# get method using clause "count"
 @app.get("/users/count")
 def userscount():
     try:
@@ -476,16 +476,29 @@ def userscount():
         return {"result": json_data}
     except Exception as error:
         return {"result":error}
-    
-# @app.get("users/usersum")
-# def usersum():
-#     try:
-#         data = mydb.data()
-#         data.execute("SELECT SUM(role) FROM subject")
-#         result = data.fetchall()      
-#         return {"resultado": result}
-#     except Exception as error:
-#         return {"resultado":error}
+
+
+#get method using clause "sum"
+@app.get("/subject/sum")
+def subject_sum():
+    try:
+        db = mydb.cursor()
+        sum = "SELECT SUM(price + iva) FROM subject"
+        db.execute(sum)
+        response = db.fetchall()
+        payload =  []
+        content = {}
+        for res in response:
+            content={
+                "sum":res[0]
+            }
+            payload.append(content)
+            content = {}
+        db.close()
+        json_data = jsonable_encoder(payload)            
+        return {"result": json_data}
+    except Exception as error:
+        return {"result":error}
     
 
 # get method using joins on two tables with clausule where and order by.
